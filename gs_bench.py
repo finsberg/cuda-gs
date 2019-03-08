@@ -1,7 +1,13 @@
 import time
 import numba
 import numpy as np
-import cupy as cp
+
+has_cupy = False
+try:
+    import cupy as cp
+    has_cupy = True
+except ImportError:
+    pass
 
 import gs_c_lib
 
@@ -58,6 +64,13 @@ def gs_C_T(V):
     for j in range(1, M):
         gs_c_lib.orthogonalise_vector(V, j)
 
+def gs_C_omp_T(V):
+    M, N = V.shape
+    assert M < N, "M={0}, N={1}".format(M, N)
+    for j in range(1, M):
+        gs_c_lib.orthogonalise_vector_omp(V, j)
+
+
 def check_ort(A):
     print(np.dot(A[:,0], A[:,1]), np.dot(A[:,0], A[:,2]), np.dot(A[:,1], A[:,2]))
 
@@ -68,103 +81,184 @@ def check_ort_cp_T(A):
     print(cp.dot(A[0,:], A[1,:]), cp.dot(A[0,:], A[2,:]), cp.dot(A[1,:], A[2,:]))
 
 
-def bench_gs_numpy():
+def bench_gs_numpy(mem_traffic=None):
+    method_desc = "numpy"
     V = V_orig.copy()
     pre = time.time()
     gs_numpy(V)
     post = time.time()
-    print("Time taken numpy: %g s" % (post-pre))
+    time_taken = post - pre
+    msg = "Time taken {0}: {1:g} s".format(method_desc, time_taken)
+    if mem_traffic is not None:
+        effective_bw = mem_traffic / time_taken
+        msg += " (effective bandwidth: {0:.0f} GB/s)".format(effective_bw/1E9)
+    print(msg)
     check_ort(V)
     print()
+    return time_taken
 
-def bench_gs_numpy_T():
-    V_T = V_orig.copy().T
+def bench_gs_numpy_T(mem_traffic=None):
+    method_desc = "numpy transposed"
+    V_T = V_orig.T.copy()
     pre = time.time()
     gs_numpy_T(V_T)
     post = time.time()
-    print("Time taken numpy transposed: %g s" % (post-pre))
+    time_taken = post - pre
+    msg = "Time taken {0}: {1:g} s".format(method_desc, time_taken)
+    if mem_traffic is not None:
+        effective_bw = mem_traffic / time_taken
+        msg += " (effective bandwidth: {0:.0f} GB/s)".format(effective_bw/1E9)
+    print(msg)
     check_ort(V_T.T)
     print()
+    return time_taken
 
-def bench_gs_numba():
+def bench_gs_numba(mem_traffic=None):
+    method_desc = "numba"
     V = V_orig.copy()
     pre = time.time()
     gs_numba(V)
     post = time.time()
-    print("Time taken numba: %g s" % (post-pre))
+    time_taken = post - pre
+    msg = "Time taken {0}: {1:g} s".format(method_desc, time_taken)
+    if mem_traffic is not None:
+        effective_bw = mem_traffic / time_taken
+        msg += " (effective bandwidth: {0:.0f} GB/s)".format(effective_bw/1E9)
+    print(msg)
     check_ort(V)
     print()
+    return time_taken
 
-def bench_gs_numba_T():
-    V_T = V_orig.copy().T
+def bench_gs_numba_T(mem_traffic=None):
+    method_desc = "numba transposed"
+    V_T = V_orig.T.copy()
     pre = time.time()
     gs_numba_T(V_T)
     post = time.time()
-    print("Time taken numba transposed: %g s" % (post-pre))
+    time_taken = post - pre
+    msg = "Time taken {0}: {1:g} s".format(method_desc, time_taken)
+    if mem_traffic is not None:
+        effective_bw = mem_traffic / time_taken
+        msg += " (effective bandwidth: {0:.0f} GB/s)".format(effective_bw/1E9)
+    print(msg)
     check_ort(V_T.T)
     print()
+    return time_taken
 
-def bench_gs_cupy():
+def bench_gs_cupy(mem_traffic=None):
+    method_desc = "cupy"
     V_d = cp.array(V_orig.copy())
     pre = time.time()
     gs_cupy(V_d)
     check_ort_cp(V_d)
     post = time.time()
-    print("Time taken cupy: %g s" % (post-pre))
+    time_taken = post - pre
+    msg = "Time taken {0}: {1:g} s".format(method_desc, time_taken)
+    if mem_traffic is not None:
+        effective_bw = mem_traffic / time_taken
+        msg += " (effective bandwidth: {0:.0f} GB/s)".format(effective_bw/1E9)
+    print(msg)
     print()
+    return time_taken
 
-def bench_gs_cupy_T():
-    V_T_d = cp.array(V_orig.copy().T)
+def bench_gs_cupy_T(mem_traffic=None):
+    method_desc = "cupy transposed"
+    V_T_d = cp.array(V_orig.T.copy())
     pre = time.time()
     gs_cupy_T(V_T_d)
     check_ort_cp_T(V_T_d)
     post = time.time()
-    print("Time taken cupy T: %g s" % (post-pre))
+    time_taken = post - pre
+    msg = "Time taken {0}: {1:g} s".format(method_desc, time_taken)
+    if mem_traffic is not None:
+        effective_bw = mem_traffic / time_taken
+        msg += " (effective bandwidth: {0:.0f} GB/s)".format(effective_bw/1E9)
+    print(msg)
     print()
+    return time_taken
 
-def bench_gs_cupy_jonas():
-    V_T_d = cp.array(V_orig.copy().T)
+def bench_gs_cupy_jonas(mem_traffic=None):
+    method_desc = "cupy jonas"
+    V_T_d = cp.array(V_orig.T.copy())
     pre = time.time()
     gs_cupy_jonas(V_T_d)
     check_ort_cp_T(V_T_d)
     post = time.time()
-    print("Time taken cupy jonas: %g s" % (post-pre))
+    time_taken = post - pre
+    msg = "Time taken {0}: {1:g} s".format(method_desc, time_taken)
+    if mem_traffic is not None:
+        effective_bw = mem_traffic / time_taken
+        msg += " (effective bandwidth: {0:.0f} GB/s)".format(effective_bw/1E9)
+    print(msg)
     print()
+    return time_taken
 
-def bench_gs_C_T():
+def bench_gs_C_T(mem_traffic=None):
+    method_desc = "C transposed"
     V_T = V_orig.T.copy()
     pre = time.time()
     gs_C_T(V_T)
     post = time.time()
-    print("Time taken C transposed: %g s" % (post-pre))
+    time_taken = post - pre
+    msg = "Time taken {0}: {1:g} s".format(method_desc, time_taken)
+    if mem_traffic is not None:
+        effective_bw = mem_traffic / time_taken
+        msg += " (effective bandwidth: {0:.0f} GB/s)".format(effective_bw/1E9)
+    print(msg)
     check_ort(V_T.T)
     print()
+    return time_taken
+
+def bench_gs_C_omp_T(mem_traffic=None):
+    method_desc = "C with OpenMP transposed"
+    V_T = V_orig.T.copy()
+    pre = time.time()
+    gs_C_omp_T(V_T)
+    post = time.time()
+    time_taken = post - pre
+    msg = "Time taken {0}: {1:g} s".format(method_desc, time_taken)
+    if mem_traffic is not None:
+        effective_bw = mem_traffic / time_taken
+        msg += " (effective bandwidth: {0:.0f} GB/s)".format(effective_bw/1E9)
+    print(msg)
+    check_ort(V_T.T)
+    print()
+    return time_taken
 
 
 if __name__ == '__main__':
-    M = int(1E5)
-    N = 100
-    print("(M, N):", (M, N))
+    M = int(1E6)
+    N = 20
+    sizeof_double = 8
+    print("(M, N): {0}, array size: {1:g} MB".format(
+        (M, N), M*N*sizeof_double/1E6))
 
     np.random.seed(1)
     V_orig = np.random.rand(M, N)
 
-    mem_traffic_optimal = (N*N + N*N/2. + N)*M*8
-    print("Optimal memory traffic {0:g} GB".format(mem_traffic_optimal/1E9))
+
+    mem_traffic_optimal = (N*N + N*N/2. + 2*N)*M*sizeof_double
+    bytes_two_vectors = 2*M*sizeof_double
+    print("Optimal memory traffic is {0:g} GB, assuming {1:.0f} MB cannot fit in cache".format(
+        mem_traffic_optimal/1E9,
+        bytes_two_vectors/1E6,
+    ))
     print()
-    if True or mem_traffic_optimal < 10E9:
+    if mem_traffic_optimal < 100E9:
         bench_gs_numpy()
         bench_gs_numpy_T()
         bench_gs_numba()
         bench_gs_numba_T()
-
+        pass
     else:
         print("Skipping numpy benchmark since it will take forever")
     print()
 
-    bench_gs_C_T()
+    bench_gs_C_T(mem_traffic=mem_traffic_optimal)
+    bench_gs_C_omp_T(mem_traffic=mem_traffic_optimal)
     print()
 
-    bench_gs_cupy()
-    bench_gs_cupy_T()
-    bench_gs_cupy_jonas()
+    if has_cupy:
+        bench_gs_cupy()
+        bench_gs_cupy_T()
+        bench_gs_cupy_jonas()
