@@ -17,7 +17,7 @@ CFLAGS = -Wall -O3 -fopenmp -fpic -march=native
 all: $(LIBFILE_CPU) $(LIBFILE_GPU)
 
 $(LIBFILE_CPU): $(LIB_CPU_OBJECTS)
-	$(CC) -shared -o $@ $^
+	$(CC) $(CFLAGS) -shared -o $@ $^
 
 $(LIBFILE_GPU): $(LIB_GPU_OBJECTS)
 	$(NVCC) -shared -o $@ $^ $(LDFLAGS_GPU) $(LDLIBS_GPU)
