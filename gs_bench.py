@@ -2,6 +2,13 @@ import time
 import numba
 import numpy as np
 
+has_numba = False
+try:
+    import numba
+    has_numba = True
+except ImportError:
+    pass
+
 has_cupy = False
 try:
     import cupy as cp
@@ -10,6 +17,13 @@ except ImportError:
     pass
 
 import gs_c_lib
+
+has_gs_cuda_lib = False
+try:
+    import gs_cuda_lib
+    has_gs_cuda_lib = True
+except ImportError:
+    pass
 
 
 def gs_numpy(V):
@@ -70,6 +84,10 @@ def gs_C_omp_T(V):
     for j in range(1, M):
         gs_c_lib.orthogonalise_vector_omp(V, j)
 
+def gs_cuda_T(V):
+    M, N = V.shape
+    assert M < N, "M={0}, N={1}".format(M, N)
+    gs_cuda_lib.orthogonalise(V)
 
 def check_ort(A):
     print(np.dot(A[:,0], A[:,1]), np.dot(A[:,0], A[:,2]), np.dot(A[:,1], A[:,2]))
@@ -225,10 +243,26 @@ def bench_gs_C_omp_T(mem_traffic=None):
     print()
     return time_taken
 
+def bench_gs_cuda_T(mem_traffic=None):
+    method_desc = "CUDA"
+    V_T = V_orig.T.copy()
+    pre = time.time()
+    gs_cuda_T(V_T)
+    post = time.time()
+    time_taken = post - pre
+    msg = "Time taken {0}: {1:g} s".format(method_desc, time_taken)
+    if mem_traffic is not None:
+        effective_bw = mem_traffic / time_taken
+        msg += " (effective bandwidth: {0:.0f} GB/s)".format(effective_bw/1E9)
+    print(msg)
+    check_ort(V_T.T)
+    print()
+    return time_taken
+
 
 if __name__ == '__main__':
     M = int(1E6)
-    N = 20
+    N = 300
     sizeof_double = 8
     print("(M, N): {0}, array size: {1:g} MB".format(
         (M, N), M*N*sizeof_double/1E6))
@@ -247,8 +281,9 @@ if __name__ == '__main__':
     if mem_traffic_optimal < 100E9:
         bench_gs_numpy()
         bench_gs_numpy_T()
-        bench_gs_numba()
-        bench_gs_numba_T()
+        if has_numba:
+            bench_gs_numba()
+            bench_gs_numba_T()
         pass
     else:
         print("Skipping numpy benchmark since it will take forever")
@@ -257,6 +292,10 @@ if __name__ == '__main__':
     bench_gs_C_T(mem_traffic=mem_traffic_optimal)
     bench_gs_C_omp_T(mem_traffic=mem_traffic_optimal)
     print()
+
+    if has_gs_cuda_lib:
+        bench_gs_cuda_T(mem_traffic=mem_traffic_optimal)
+        print()
 
     if has_cupy:
         bench_gs_cupy()
