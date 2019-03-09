@@ -25,7 +25,8 @@ inline void __checkCuda(cudaError_t error, const char *file, const int line)
 
 enum init_returncode {
     INIT_SUCCESS,
-    INIT_INSUFFIENT_MEMORY
+    INIT_NO_DEVICES,
+    INIT_INSUFFIENT_MEMORY,
 };
 
 __global__ void gs_dot_kernel(double *V, int N, int v_ind, int elements_per_thread,
@@ -47,11 +48,7 @@ __global__ void gs_dot_kernel(double *V, int N, int v_ind, int elements_per_thre
         }
         i += step;
     }
-#if 0
-    int dot_prod_parts_ind = u_ind*dot_prod_parts_row_length + blockIdx.x*blockDim.x + threadIdx.x;
-    dot_prod_uu_parts[dot_prod_parts_ind] = dot_prod_uu_part;
-    dot_prod_uv_parts[dot_prod_parts_ind] = dot_prod_uv_part;
-#else
+
     // reduce within warp
     dot_prod_uu_part += __shfl_down_sync(0xffffffff, dot_prod_uu_part, 16, 32);
     dot_prod_uu_part += __shfl_down_sync(0xffff0000, dot_prod_uu_part,  8, 32);
@@ -70,7 +67,6 @@ __global__ void gs_dot_kernel(double *V, int N, int v_ind, int elements_per_thre
         dot_prod_uu_parts[dot_prod_parts_ind] = dot_prod_uu_part;
         dot_prod_uv_parts[dot_prod_parts_ind] = dot_prod_uv_part;
     }
-#endif
 }
 
 __global__ void gs_dot_reduce_kernel(int dot_prod_parts_row_length,
@@ -93,7 +89,7 @@ __global__ void gs_dot_reduce_kernel(int dot_prod_parts_row_length,
     }
 
 #ifdef DEBUG
-    printf("dotreduce prerelease (%d, %d): uu: %8g  uv: %8g\n",
+    printf("dotreduce prereduce (%d, %d): uu: %8g  uv: %8g\n",
         blockIdx.x, threadIdx.x, dot_prod_uu_part, dot_prod_uv_part);
 #endif
 
@@ -172,9 +168,20 @@ extern int threadblocks_per_row_dot_kernel(int num_SMs, int threadblocks_y)
 
 int gs_init(struct gs_data** data_ptr, int M, int N)
 {
+    int device_count;
+    {
+        cudaError_t error;
+        error = cudaGetDeviceCount(&device_count);
+        if (error == cudaErrorNoDevice) {
+            return INIT_NO_DEVICES;
+        }
+        checkCuda(error);
+    }
+
+
     int device_num = 0;
     cudaDeviceProp deviceProp;
-    cudaGetDeviceProperties(&deviceProp, device_num);
+    checkCuda(cudaGetDeviceProperties(&deviceProp, device_num));
     int num_SMs = deviceProp.multiProcessorCount;
     size_t global_memory_size = deviceProp.totalGlobalMem;
 
@@ -265,8 +272,8 @@ void gs_orthogonalise_vector(struct gs_data* data, int new_vec_ind)
         double dot_prod_buffer_uu[dot_prod_parts_row_length*new_vec_ind];
         double dot_prod_buffer_uv[dot_prod_parts_row_length*new_vec_ind];
         size_t dot_prod_buffer_activesize = dot_prod_parts_row_length*new_vec_ind*sizeof(double);
-        cudaMemcpy(dot_prod_buffer_uu, data->dot_prod_buffer_uu, dot_prod_buffer_activesize, cudaMemcpyDeviceToHost);
-        cudaMemcpy(dot_prod_buffer_uv, data->dot_prod_buffer_uv, dot_prod_buffer_activesize, cudaMemcpyDeviceToHost);
+        checkCuda(cudaMemcpy(dot_prod_buffer_uu, data->dot_prod_buffer_uu, dot_prod_buffer_activesize, cudaMemcpyDeviceToHost));
+        checkCuda(cudaMemcpy(dot_prod_buffer_uv, data->dot_prod_buffer_uv, dot_prod_buffer_activesize, cudaMemcpyDeviceToHost));
         for (int i = 0; i < new_vec_ind; i++) {
             printf("[%3d]: \n", i);
             for (int j = 0; j < dot_prod_parts_row_length; j++) {
@@ -292,7 +299,7 @@ void gs_orthogonalise_vector(struct gs_data* data, int new_vec_ind)
 
 #ifdef DEBUG
     double dot_prod_frac[new_vec_ind];
-    cudaMemcpy(dot_prod_frac, data->dot_prod_frac, sizeof(double)*new_vec_ind, cudaMemcpyDeviceToHost);
+    checkCuda(cudaMemcpy(dot_prod_frac, data->dot_prod_frac, sizeof(double)*new_vec_ind, cudaMemcpyDeviceToHost));
     for (int i = 0; i < new_vec_ind; i++) {
         printf("%3d: %g\n", i, dot_prod_frac[i]);
     }
@@ -302,10 +309,6 @@ void gs_orthogonalise_vector(struct gs_data* data, int new_vec_ind)
     {
         int threadblock_size = 32;
         int threadblocks = CEIL_DIV(N, threadblock_size);
-        /*
-        printf("subtract projection on line %3d (%d, %d)\n",
-            new_vec_ind, threadblocks, threadblock_size);
-            */
 
         dim3 grid_dim(threadblocks);
         dim3 threadblock_dim(threadblock_size);
@@ -315,7 +318,7 @@ void gs_orthogonalise_vector(struct gs_data* data, int new_vec_ind)
         checkCuda(cudaPeekAtLastError());
     }
 
-    cudaStreamSynchronize(data->stream);
+    checkCuda(cudaStreamSynchronize(data->stream));
 }
 
 } // end extern "C"

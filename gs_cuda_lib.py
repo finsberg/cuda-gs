@@ -48,6 +48,7 @@ def _setup_function_gs_init(c_func):
     def errcheck(return_code, func, params):
         init_return_code_desc = [
             'success',
+            'no GPU devices found',
             'insuffient device memory',
         ]
         if return_code != 0:
