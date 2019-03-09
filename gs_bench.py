@@ -1,5 +1,4 @@
 import time
-import numba
 import numpy as np
 
 has_numba = False
@@ -38,21 +37,22 @@ def gs_numpy_T(V):
         inner_prods_uu= np.sum(V[:j,:]*V[:j,:], axis=1)
         V[j,:] -= np.sum((inner_prods_uv/inner_prods_uu)[:,np.newaxis]*V[:j,:],axis=0)
 
-@numba.jit(cache=True, nopython=True)
-def gs_numba(V):
-    for j in range(1,N):
-        for i in range(j):
-            inner_prod_uv = np.sum(V[:,j]*V[:,i], axis=0)
-            inner_prod_uu= np.sum(V[:,i]*V[:,i],axis=0)
-            V[:,j] -= inner_prod_uv/inner_prod_uu*V[:,i]
+if has_numba:
+    @numba.jit(cache=True, nopython=True)
+    def gs_numba(V):
+        for j in range(1,N):
+            for i in range(j):
+                inner_prod_uv = np.sum(V[:,j]*V[:,i], axis=0)
+                inner_prod_uu= np.sum(V[:,i]*V[:,i],axis=0)
+                V[:,j] -= inner_prod_uv/inner_prod_uu*V[:,i]
 
-@numba.jit(cache=True, nopython=True)
-def gs_numba_T(V):
-    for j in range(1,N):
-        for i in range(j):
-            inner_prod_uv = np.dot(V[j,:],V[i,:])
-            inner_prod_uu= np.dot(V[i,:],V[i,:])
-            V[j,:] -= (inner_prod_uv/inner_prod_uu)*V[i,:]
+    @numba.jit(cache=True, nopython=True)
+    def gs_numba_T(V):
+        for j in range(1,N):
+            for i in range(j):
+                inner_prod_uv = np.dot(V[j,:],V[i,:])
+                inner_prod_uu= np.dot(V[i,:],V[i,:])
+                V[j,:] -= (inner_prod_uv/inner_prod_uu)*V[i,:]
 
 def gs_cupy(V):
     for j in range(1,N):
