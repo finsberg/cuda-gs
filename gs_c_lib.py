@@ -15,7 +15,8 @@ def _load_libgs(rebuild=True):
         args = ['make', '-C', libdir, lib_filename]
         cp = subprocess.run(
             args,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
         if cp.returncode != 0:
             print(cp.stdout.decode('utf-8'))
