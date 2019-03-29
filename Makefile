@@ -9,8 +9,10 @@ LIB_GPU_OBJECTS = $(LIB_GPU_SOURCES:.cu=.o)
 
 NVCC = nvcc
 NVCCFLAGS = -O3 -Xcompiler -fpic
+NVCCFLAGS += -DHAS_NCCL -Xcompiler -fopenmp
 LDFLAGS_GPU = -L/usr/local/cuda/lib -L/usr/local/cuda/lib64
 LDLIBS_GPU = -lcudart
+LDLIBS_GPU += -lnccl
 
 CFLAGS = -Wall -O3 -fopenmp -fpic -march=native
 

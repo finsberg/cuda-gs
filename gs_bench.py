@@ -89,6 +89,11 @@ def gs_cuda_T(V):
     assert M < N, "M={0}, N={1}".format(M, N)
     gs_cuda_lib.orthogonalise(V)
 
+def gs_cuda_nccl_T(V):
+    M, N = V.shape
+    assert M < N, "M={0}, N={1}".format(M, N)
+    gs_cuda_lib.orthogonalise_nccl(V)
+
 def check_ort(A):
     print(np.dot(A[:,0], A[:,1]), np.dot(A[:,0], A[:,2]), np.dot(A[:,1], A[:,2]))
 
@@ -259,6 +264,45 @@ def bench_gs_cuda_T(mem_traffic=None):
     print()
     return time_taken
 
+def bench_gs_cuda_nccl_T(mem_traffic=None):
+    method_desc = "multi-GPU CUDA with NCCL"
+    V_T = V_orig.T.copy()
+    pre = time.time()
+    gs_cuda_nccl_T(V_T)
+    post = time.time()
+    time_taken = post - pre
+    msg = "Time taken {0}: {1:g} s".format(method_desc, time_taken)
+    if mem_traffic is not None:
+        effective_bw = mem_traffic / time_taken
+        msg += " (effective bandwidth: {0:.0f} GB/s)".format(effective_bw/1E9)
+    print(msg)
+    check_ort(V_T.T)
+    print()
+    return time_taken
+
+if has_numba:
+    @numba.njit(cache=True)
+    def _generate_V(M, N):
+        V = np.random.rand(M, N)
+        return V
+
+    def generate_V(M, N):
+        pre = time.time()
+        V = _generate_V(M, N)
+        post = time.time()
+        if post - pre > 1:
+            print("Generated random V in {0:g} seconds".format(post-pre))
+        return V
+else:
+    def generate_V(M, N):
+        pre = time.time()
+        V = np.random.rand(M, N)
+        post = time.time()
+        if post - pre > 1:
+            print("Generated random V in {0:g} seconds".format(post-pre))
+        return V
+
+
 
 if __name__ == '__main__':
     M = int(1E6)
@@ -268,7 +312,8 @@ if __name__ == '__main__':
         (M, N), M*N*sizeof_double/1E6))
 
     np.random.seed(1)
-    V_orig = np.random.rand(M, N)
+    V_orig = generate_V(M, N)
+    #V_orig = np.random.rand(M, N)
 
 
     mem_traffic_optimal = (N*N + N*N/2. + 2*N)*M*sizeof_double
@@ -278,7 +323,7 @@ if __name__ == '__main__':
         bytes_two_vectors/1E6,
     ))
     print()
-    if mem_traffic_optimal < 100E9:
+    if False and mem_traffic_optimal < 100E9:
         bench_gs_numpy()
         bench_gs_numpy_T()
         if has_numba:
@@ -289,15 +334,16 @@ if __name__ == '__main__':
         print("Skipping numpy benchmark since it will take forever")
     print()
 
-    bench_gs_C_T(mem_traffic=mem_traffic_optimal)
-    bench_gs_C_omp_T(mem_traffic=mem_traffic_optimal)
-    print()
+    #bench_gs_C_T(mem_traffic=mem_traffic_optimal)
+    #bench_gs_C_omp_T(mem_traffic=mem_traffic_optimal)
+    #print()
 
     if has_gs_cuda_lib:
-        bench_gs_cuda_T(mem_traffic=mem_traffic_optimal)
+        #bench_gs_cuda_T(mem_traffic=mem_traffic_optimal)
+        bench_gs_cuda_nccl_T(mem_traffic=mem_traffic_optimal)
         print()
 
-    if has_cupy:
-        bench_gs_cupy()
-        bench_gs_cupy_T()
-        bench_gs_cupy_jonas()
+    #if has_cupy:
+    #    bench_gs_cupy()
+    #    bench_gs_cupy_T()
+    #    bench_gs_cupy_jonas()

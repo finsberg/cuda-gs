@@ -34,6 +34,11 @@ def _setup_functions(lib):
     _setup_function_gs_copy_from_host(lib.gs_copy_from_host)
     _setup_function_gs_copy_to_host(lib.gs_copy_to_host)
     _setup_function_gs_orthogonalise_vector(lib.gs_orthogonalise_vector)
+    _setup_function_gs_init(lib.gs_init_nccl)
+    _setup_function_gs_cleanup(lib.gs_cleanup_nccl)
+    _setup_function_gs_copy_from_host(lib.gs_copy_from_host_nccl)
+    _setup_function_gs_copy_to_host(lib.gs_copy_to_host_nccl)
+    _setup_function_gs_orthogonalise_vector(lib.gs_orthogonalise_vector_nccl)
 
     #_setup_function_gs_orthogonalise_vector(lib.gs_orthogonalise_vector_omp)
 
@@ -50,6 +55,7 @@ def _setup_function_gs_init(c_func):
             'success',
             'no GPU devices found',
             'insuffient device memory',
+            'missing OpenMP',
         ]
         if return_code != 0:
             msg = "ERROR: {0}".format(init_return_code_desc[return_code])
@@ -97,7 +103,10 @@ def orthogonalise(V, verbose=False):
     # data_ptr will be used as a pointer to pointer
     data_ptr = ctypes.byref(data_placeholder)
 
-    _lib.gs_init(data_ptr, M, N)
+    device_count = c_int(0)
+    device_count_ptr = ctypes.byref(device_count)
+
+    _lib.gs_init(data_ptr, M, N, device_count_ptr)
     if verbose:
         print("init done")
 
@@ -119,5 +128,46 @@ def orthogonalise(V, verbose=False):
 
 
     _lib.gs_cleanup(data_placeholder)
+    if verbose:
+        print("cleanup done")
+
+
+def orthogonalise_nccl(V, verbose=False):
+    assert len(V.shape) == 2
+    M, N = V.shape
+    if M >= N:
+        print ("Warning: M >= N, {0} >= {1}.".format(M, N))
+
+    # we need 8 bytes to hold a pointer to the gs_data struct
+    data_placeholder = c_long(0)
+    # data_ptr will be used as a pointer to pointer
+    data_ptr = ctypes.byref(data_placeholder)
+
+    device_count = c_int(0)
+    device_count_ptr = ctypes.byref(device_count)
+
+    _lib.gs_init_nccl(data_ptr, M, N, device_count_ptr)
+    if verbose:
+        print("init done")
+    print("Using {0} devices".format(device_count.value))
+
+    _lib.gs_copy_from_host_nccl(data_placeholder, V)
+    if verbose:
+        print("copy from host done")
+
+
+    #import tqdm
+    #for new_vec_ind in tqdm.trange(1, M):
+    for new_vec_ind in range(1, M):
+        _lib.gs_orthogonalise_vector_nccl(data_placeholder, new_vec_ind)
+    if verbose:
+        print("orthogonalise done")
+
+    _lib.gs_copy_to_host_nccl(data_placeholder, V)
+    if verbose:
+        print("copy to host done")
+
+
+    _lib.gs_cleanup_nccl(data_placeholder)
     if verbose:
         print("cleanup done")
