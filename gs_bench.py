@@ -283,6 +283,7 @@ def bench_gs_cuda_nccl_T(mem_traffic=None):
 if has_numba:
     @numba.njit(cache=True)
     def _generate_V(M, N):
+        np.random.seed(1)
         V = np.random.rand(M, N)
         return V
 
@@ -296,6 +297,7 @@ if has_numba:
 else:
     def generate_V(M, N):
         pre = time.time()
+        np.random.seed(1)
         V = np.random.rand(M, N)
         post = time.time()
         if post - pre > 1:
@@ -311,10 +313,7 @@ if __name__ == '__main__':
     print("(M, N): {0}, array size: {1:g} MB".format(
         (M, N), M*N*sizeof_double/1E6))
 
-    np.random.seed(1)
     V_orig = generate_V(M, N)
-    #V_orig = np.random.rand(M, N)
-
 
     mem_traffic_optimal = (N*N + N*N/2. + 2*N)*M*sizeof_double
     bytes_two_vectors = 2*M*sizeof_double
@@ -323,7 +322,7 @@ if __name__ == '__main__':
         bytes_two_vectors/1E6,
     ))
     print()
-    if False and mem_traffic_optimal < 100E9:
+    if mem_traffic_optimal < 100E9:
         bench_gs_numpy()
         bench_gs_numpy_T()
         if has_numba:
@@ -334,16 +333,23 @@ if __name__ == '__main__':
         print("Skipping numpy benchmark since it will take forever")
     print()
 
-    #bench_gs_C_T(mem_traffic=mem_traffic_optimal)
-    #bench_gs_C_omp_T(mem_traffic=mem_traffic_optimal)
-    #print()
+    if mem_traffic_optimal < 1000E9:
+        if mem_traffic_optimal < 500E9:
+            bench_gs_C_T(mem_traffic=mem_traffic_optimal)
+        else:
+            print("Skipping serial C benchmark since it will take very long")
+
+        bench_gs_C_omp_T(mem_traffic=mem_traffic_optimal)
+    else:
+        print("Skipping CPU benchmarks since they will take very long")
+    print()
 
     if has_gs_cuda_lib:
-        #bench_gs_cuda_T(mem_traffic=mem_traffic_optimal)
+        bench_gs_cuda_T(mem_traffic=mem_traffic_optimal)
         bench_gs_cuda_nccl_T(mem_traffic=mem_traffic_optimal)
         print()
 
-    #if has_cupy:
-    #    bench_gs_cupy()
-    #    bench_gs_cupy_T()
-    #    bench_gs_cupy_jonas()
+    if has_cupy:
+        bench_gs_cupy()
+        bench_gs_cupy_T()
+        bench_gs_cupy_jonas()
