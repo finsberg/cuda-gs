@@ -84,15 +84,15 @@ def gs_C_omp_T(V):
     for j in range(1, M):
         gs_c_lib.orthogonalise_vector_omp(V, j)
 
-def gs_cuda_T(V):
+def gs_cuda_T(V, verbose=False):
     M, N = V.shape
     assert M < N, "M={0}, N={1}".format(M, N)
-    gs_cuda_lib.orthogonalise(V)
+    gs_cuda_lib.orthogonalise(V, verbose=verbose)
 
-def gs_cuda_nccl_T(V):
+def gs_cuda_nccl_T(V, verbose=False):
     M, N = V.shape
     assert M < N, "M={0}, N={1}".format(M, N)
-    gs_cuda_lib.orthogonalise_nccl(V)
+    gs_cuda_lib.orthogonalise_nccl(V, verbose=verbose)
 
 def check_ort(A):
     print(np.dot(A[:,0], A[:,1]), np.dot(A[:,0], A[:,2]), np.dot(A[:,1], A[:,2]))
@@ -248,11 +248,11 @@ def bench_gs_C_omp_T(mem_traffic=None):
     print()
     return time_taken
 
-def bench_gs_cuda_T(mem_traffic=None):
+def bench_gs_cuda_T(mem_traffic=None, verbose=False):
     method_desc = "CUDA"
     V_T = V_orig.T.copy()
     pre = time.time()
-    gs_cuda_T(V_T)
+    gs_cuda_T(V_T, verbose=verbose)
     post = time.time()
     time_taken = post - pre
     msg = "Time taken {0}: {1:g} s".format(method_desc, time_taken)
@@ -264,11 +264,11 @@ def bench_gs_cuda_T(mem_traffic=None):
     print()
     return time_taken
 
-def bench_gs_cuda_nccl_T(mem_traffic=None):
+def bench_gs_cuda_nccl_T(mem_traffic=None, verbose=False):
     method_desc = "multi-GPU CUDA with NCCL"
     V_T = V_orig.T.copy()
     pre = time.time()
-    gs_cuda_nccl_T(V_T)
+    gs_cuda_nccl_T(V_T, verbose=verbose)
     post = time.time()
     time_taken = post - pre
     msg = "Time taken {0}: {1:g} s".format(method_desc, time_taken)
@@ -345,8 +345,8 @@ if __name__ == '__main__':
     print()
 
     if has_gs_cuda_lib:
-        bench_gs_cuda_T(mem_traffic=mem_traffic_optimal)
-        bench_gs_cuda_nccl_T(mem_traffic=mem_traffic_optimal)
+        bench_gs_cuda_T(mem_traffic=mem_traffic_optimal, verbose=True)
+        bench_gs_cuda_nccl_T(mem_traffic=mem_traffic_optimal, verbose=True)
         print()
 
     if has_cupy:
