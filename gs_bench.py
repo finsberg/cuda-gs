@@ -66,11 +66,6 @@ def gs_cupy_T(V):
         inner_prods_uu = cp.sum(V[:j,:]*V[:j,:],axis=1)
         V[j,:] -= cp.sum((inner_prods_uv/inner_prods_uu)[:,np.newaxis]*V[:j,:],axis=0)
 
-def gs_cupy_jonas(V):
-    for j in range(1, N):
-        inner_prods = np.sum(V[j]*V, axis=1)
-        V[j] = 2*V[j] - np.sum(inner_prods[:,None]*V, axis=0)
-
 
 def gs_C_T(V):
     M, N = V.shape
@@ -189,22 +184,6 @@ def bench_gs_cupy_T(mem_traffic=None):
     V_T_d = cp.array(V_orig.T.copy())
     pre = time.time()
     gs_cupy_T(V_T_d)
-    check_ort_cp_T(V_T_d)
-    post = time.time()
-    time_taken = post - pre
-    msg = "Time taken {0}: {1:g} s".format(method_desc, time_taken)
-    if mem_traffic is not None:
-        effective_bw = mem_traffic / time_taken
-        msg += " (effective bandwidth: {0:.0f} GB/s)".format(effective_bw/1E9)
-    print(msg)
-    print()
-    return time_taken
-
-def bench_gs_cupy_jonas(mem_traffic=None):
-    method_desc = "cupy jonas"
-    V_T_d = cp.array(V_orig.T.copy())
-    pre = time.time()
-    gs_cupy_jonas(V_T_d)
     check_ort_cp_T(V_T_d)
     post = time.time()
     time_taken = post - pre
