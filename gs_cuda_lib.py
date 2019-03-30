@@ -29,19 +29,23 @@ def _load_lib(rebuild=True):
     _setup_functions(lib)
     return lib
 
+has_nccl = False
 def _setup_functions(lib):
     _setup_function_gs_init(lib.gs_init)
     _setup_function_gs_cleanup(lib.gs_cleanup)
     _setup_function_gs_copy_from_host(lib.gs_copy_from_host)
     _setup_function_gs_copy_to_host(lib.gs_copy_to_host)
     _setup_function_gs_orthogonalise_vector(lib.gs_orthogonalise_vector)
-    _setup_function_gs_init(lib.gs_init_nccl)
-    _setup_function_gs_cleanup(lib.gs_cleanup_nccl)
-    _setup_function_gs_copy_from_host(lib.gs_copy_from_host_nccl)
-    _setup_function_gs_copy_to_host(lib.gs_copy_to_host_nccl)
-    _setup_function_gs_orthogonalise_vector(lib.gs_orthogonalise_vector_nccl)
-
-    #_setup_function_gs_orthogonalise_vector(lib.gs_orthogonalise_vector_omp)
+    try:
+        _setup_function_gs_init(lib.gs_init_nccl)
+        _setup_function_gs_cleanup(lib.gs_cleanup_nccl)
+        _setup_function_gs_copy_from_host(lib.gs_copy_from_host_nccl)
+        _setup_function_gs_copy_to_host(lib.gs_copy_to_host_nccl)
+        _setup_function_gs_orthogonalise_vector(lib.gs_orthogonalise_vector_nccl)
+        has_nccl = True
+    except AttributeError:
+        pass
+        #print("nccl functions were not built")
 
 def _setup_function_gs_init(c_func):
     c_func.restype = c_int # return code for success/failure
@@ -141,6 +145,8 @@ def orthogonalise(V, verbose=False):
         log_timestamp(timestamp_start, "cleanup done")
 
 def orthogonalise_nccl(V, verbose=False):
+    if not has_nccl:
+        raise RuntimeError("NCCL functions were not built and cannot be called")
     timestamp_start = time.time()
     assert len(V.shape) == 2
     M, N = V.shape

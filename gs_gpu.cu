@@ -269,6 +269,7 @@ extern int threadblocks_per_row_dot_kernel(int num_SMs, int threadblocks_y)
     return threadblocks_x;
 }
 
+#ifdef HAS_NCCL
 int gs_init_nccl(struct gs_node_ctx** node_ctx_ptr, int M, int N_total,
                  int* device_count_ptr)
 {
@@ -543,6 +544,7 @@ void gs_orthogonalise_vector_nccl(struct gs_node_ctx* node_ctx, int new_vec_ind)
         checkCuda(cudaStreamSynchronize(data->stream));
     }
 }
+#endif // HAS_NCCL
 
 int gs_init(struct gs_data** data_ptr, int M, int N, int* device_count_ptr)
 {

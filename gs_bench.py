@@ -346,7 +346,8 @@ if __name__ == '__main__':
 
     if has_gs_cuda_lib:
         bench_gs_cuda_T(mem_traffic=mem_traffic_optimal, verbose=True)
-        bench_gs_cuda_nccl_T(mem_traffic=mem_traffic_optimal, verbose=True)
+        if gs_cuda_lib.has_nccl:
+            bench_gs_cuda_nccl_T(mem_traffic=mem_traffic_optimal, verbose=True)
         print()
 
     if has_cupy:
