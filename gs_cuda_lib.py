@@ -26,16 +26,16 @@ def _load_lib(rebuild=True):
             raise ImportError("Failed to build CUDA library")
     lib_path = os.path.join(libdir, lib_filename)
     lib = np.ctypeslib.load_library(lib_path, '.')
-    _setup_functions(lib)
-    return lib
+    has_nccl = _setup_functions(lib)
+    return lib, has_nccl
 
-has_nccl = False
 def _setup_functions(lib):
     _setup_function_gs_init(lib.gs_init)
     _setup_function_gs_cleanup(lib.gs_cleanup)
     _setup_function_gs_copy_from_host(lib.gs_copy_from_host)
     _setup_function_gs_copy_to_host(lib.gs_copy_to_host)
     _setup_function_gs_orthogonalise_vector(lib.gs_orthogonalise_vector)
+    has_nccl = False
     try:
         _setup_function_gs_init(lib.gs_init_nccl)
         _setup_function_gs_cleanup(lib.gs_cleanup_nccl)
@@ -45,7 +45,7 @@ def _setup_functions(lib):
         has_nccl = True
     except AttributeError:
         pass
-        #print("nccl functions were not built")
+    return has_nccl
 
 def _setup_function_gs_init(c_func):
     c_func.restype = c_int # return code for success/failure
@@ -95,7 +95,7 @@ def _setup_function_gs_orthogonalise_vector(c_func):
         c_int,            # new_vec_ind
     ]
 
-_lib = _load_lib()
+_lib, has_nccl = _load_lib()
 
 def log_timestamp(timestamp_start, desc):
     time_elapsed = time.time() - timestamp_start
