@@ -6,6 +6,8 @@ add_library(gs_gpu SHARED gs_gpu.cu)
 
 find_package(OpenMP)
 if (OPENMP_FOUND)
+    message("OpenMP found")
+    target_link_libraries(gs OpenMP::OpenMP_C)
     target_link_libraries(gs_gpu ${OpenMP})
 endif()
 
