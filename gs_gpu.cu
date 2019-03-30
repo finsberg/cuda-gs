@@ -316,6 +316,9 @@ int gs_init_nccl(struct gs_node_ctx** node_ctx_ptr, int M, int N_total,
         #pragma omp critical
         {
             if (global_memory_size < required_memory_size) {
+                printf("error: device %d would use %.0f / %.0f MB of global memory\n",
+                    device_num, required_memory_size/1E6, global_memory_size/1E6
+                );
                 insufficient_memory = 1;
             }
             threads_seen++;
