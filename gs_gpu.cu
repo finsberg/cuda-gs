@@ -323,7 +323,7 @@ int gs_init_nccl(struct gs_node_ctx** node_ctx_ptr, int M, int N_total,
     if (insufficient_memory) {
         return INIT_INSUFFICIENT_MEMORY;
     }
-    if (threads_seen == 1) {
+    if (threads_seen == 1 && device_count != 1) {
         return INIT_MISSING_OPENMP;
     }
 
