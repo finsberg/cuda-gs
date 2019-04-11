@@ -9,6 +9,8 @@ import numpy as np
 float64_array_2d = np.ctypeslib.ndpointer(dtype=c_double, ndim=2,
                                           flags="contiguous")
 
+ctypes.CDLL('libgomp.so.1', mode=ctypes.RTLD_GLOBAL)
+
 
 def _load_lib(rebuild=True):
     lib_filename = "libgs_gpu.so"
